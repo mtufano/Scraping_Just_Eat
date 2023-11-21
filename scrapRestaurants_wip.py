@@ -77,5 +77,5 @@ class ScrapRestaurants:
         print(f'Saved {len(urls)} URLs to {file_name}')
 
 # Usage
-area_urls = ScrapRestaurants.read_urls_from_file('test.txt')
+area_urls = ScrapRestaurants.read_urls_from_file('urls/modified_london_postcodes.txt')
 scraped_urls = ScrapRestaurants.scrape_restaurant_urls(area_urls)
