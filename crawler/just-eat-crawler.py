@@ -9,6 +9,8 @@ import requests
 import json
 import sqlite3
 import logging
+import threading
+from selenium.webdriver.chrome.options import Options
 class ScrapRestaurants:
     def __init__(self, url):
         self.url = url
@@ -84,7 +86,7 @@ class ScrapRestaurants:
                     'price': price,
                     'image_url': image_url
                 })
-                print(extracted_data['image_url'])
+                
             return restaurant_info, extracted_data
         finally:
             driver.quit()
@@ -131,13 +133,21 @@ def process_url(url, db_name):
     scraper.save_to_db(db_name, restaurant_info, menu_items)
 
 def main():
-    db_name = 'restaurants.db'
+    db_name = 'data/restaurants.db'
     with open('test.txt', 'r') as file:
         urls = [line.strip() for line in file.readlines()]
 
-    for url in urls:
-        process_url(url, db_name)
-        print(f"Processed {url}")
+    threads = []
+    for i in range(0, len(urls), 3):
+        for url in urls[i:i+3]:
+            thread = threading.Thread(target=process_url, args=(url, db_name))
+            threads.append(thread)
+            thread.start()
+
+        # Wait for all threads to complete
+        for thread in threads:
+            thread.join()
+            print(f"Processed {thread.name}")
 
 if __name__ == "__main__":
     main()
