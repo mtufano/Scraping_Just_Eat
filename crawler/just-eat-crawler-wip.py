@@ -1,112 +1,100 @@
-import random
-import time
 from selenium import webdriver
-from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
-import xlsxwriter
+import time
+import random
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.common.by import By
-import time
+import requests
 
-class Crawler:    
-    @staticmethod
-    def read_urls_from_file(filename):
-        with open(filename, 'r') as file:
-            return [line.strip() for line in file]
+class ScrapRestaurants:
+    def __init__(self, url):
+        self.url = url
 
+    def fetch_and_parse(self):
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                            '(KHTML, like Gecko) Chrome/102.0.5005.63 Safari/537.36'
+            }
+            response = requests.get(url, headers=headers)
+            soup = BeautifulSoup(response.content, 'html.parser')
+            return soup
+        except requests.HTTPError as e:
+            print(f"HTTP Error: {e}")
+            return None
+        except Exception as e:
+            print(f"Error: {e}")
+            return None
+    
     @staticmethod
     def scroll_to_bottom(driver):
         last_height = driver.execute_script("return document.body.scrollHeight")
         while True:
+            # Scroll down to the bottom of the page
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            
+            # Random sleep to mimic human behavior
             time.sleep(random.uniform(2, 5))
+
+            # Calculate the new scroll height and compare it with the last scroll height
             new_height = driver.execute_script("return document.body.scrollHeight")
             if new_height == last_height:
                 break
             last_height = new_height
 
-    @staticmethod
-    def scrape_restaurant_menus(area_urls):
-        options = webdriver.ChromeOptions()
-        options.add_argument('--headless')  # Runs Chrome in headless mode.
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-
-        for url in area_urls:
-            driver.get(url)
+            # Additional random sleep after scroll
             time.sleep(random.uniform(2, 5))
-            Crawler.scroll_to_bottom(driver)
-            content = driver.page_source
-            menu_items = Crawler.extract_menu_items(content)
-            print(menu_items)  # Process or store the extracted data as needed
 
-    @staticmethod
-    def extract_menu_items(html_content):
-        soup = BeautifulSoup(html_content, 'html.parser')
-        menu_items = soup.find_all('div', class_='c-menuItems-container')
-        extracted_data = []
-
-        for item in menu_items:
-            name = item.find('h3', class_='c-menuItems-heading').get_text(strip=True) if item.find('h3') else 'No Name'
-            description = item.find('p', class_='c-menuItems-description').get_text(strip=True) if item.find('p') else 'No Description'
-            price = item.find('p', class_='c-menuItems-price').get_text(strip=True) if item.find('p') else 'No Price'
-            image_container = item.find('div', class_='c-menuItems-imageContainer')
-            image_url = image_container.img['src'] if image_container and image_container.img else 'No Image URL'
-            
-            extracted_data.append({
-                'name': name,
-                'description': description,
-                'price': price,
-                'image_url': image_url
-            })
-
-        return extracted_data
-    
-    @staticmethod
-    def scrape_restaurant_details(area_urls):
-        # Set up the Excel workbook and worksheet
-        workbook = xlsxwriter.Workbook('Restaurants.xlsx')
-        worksheet = workbook.add_worksheet()
-        row_count = 0
-
+    def extract_menu_items_with_selenium(self):
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+        
+        try:
+            driver.get(self.url)
+            # Wait for potential dynamic content to load
+            time.sleep(random.uniform(5, 10))
+            ScrapRestaurants.scroll_to_bottom(driver)
 
-        for url in area_urls:
-            try:
-                driver.get(url)
-                time.sleep(random.uniform(2, 5))  # Allow time for the page to load
+            # Fetch page source and parse it
+            soup = BeautifulSoup(driver.page_source, 'html.parser')
 
-                # Extract restaurant details
-                details = driver.find_element(By.XPATH, "//div[@class='restaurantOverview o-card u-negativeSpace--top']/div[2]")
-                rstName = details.find_element(By.XPATH, "//h1[@class='name']").text
-                Foods = details.find_elements(By.XPATH, "//p[@class='cuisines']/span")
+            menu_items = soup.find_all('div', class_='c-menuItems-container')
+            if not menu_items:
+                print("No menu items found with the given selector.")
+                return []
 
-                if len(Foods) > 1:
-                    rstFood = ', '.join([food.text for food in Foods[:2]])
-                else:
-                    rstFood = Foods[0].text if Foods else 'No Food Info'
+            extracted_data = []
+            for item in menu_items:
+                name_tag = item.find('h3', class_='c-menuItems-heading')
+                name = name_tag.get_text(strip=True) if name_tag else 'No Name'
 
-                address_parts = details.find_elements(By.XPATH, "//p[@class='address']/span")
-                rstAddress = ', '.join([part.text for part in address_parts])
+                description_tag = item.find('p', class_='c-menuItems-description')
+                description = description_tag.get_text(strip=True) if description_tag else 'No Description'
 
-                # Write to worksheet
-                worksheet.write(row_count, 0, rstName)
-                worksheet.write(row_count, 1, rstFood)
-                worksheet.write(row_count, 2, rstAddress)
+                price_tag = item.find('p', class_='c-menuItems-price')
+                price = price_tag.get_text(strip=True) if price_tag else 'No Price'
 
-                print(f"{row_count} scraped {url} - {rstName}")
-                row_count += 1
+                image_container = item.find('div', class_='c-menuItems-imageContainer')
+                image_url = image_container.img['src'] if image_container and image_container.img else 'No Image URL'
 
-            except Exception as ex:
-                print(f"Error scraping {url}: {ex}")
+                extracted_data.append({
+                    'name': name,
+                    'description': description,
+                    'price': price,
+                    'image_url': image_url
+                })
 
-        # Close resources
-        workbook.close()
-        driver.quit()
+            if not extracted_data:
+                print("Extraction logic executed, but no data was extracted.")
+            return extracted_data
+        finally:
+            driver.quit()
 
-# Example usage
-area_urls = ['https://www.just-eat.co.uk/restaurants-jojo-peri-peri-earls-court/menu']
-Crawler.scrape_restaurant_menus(area_urls)
+
+# Usage example for a single URL
+url = 'https://www.just-eat.co.uk/restaurants-jojo-peri-peri-earls-court/menu'  # Replace with your actual URL
+scraper = ScrapRestaurants(url)
+menu_items = scraper.extract_menu_items_with_selenium()
+print(menu_items)

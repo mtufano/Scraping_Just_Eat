@@ -1,0 +1,2 @@
+(window.webpackJsonp=window.webpackJsonp||[]).push([[24],{"sKc/":function(n,t,c){"use strict";c.r(t);var e=function(){return(0,this._self._c)("div")};e._withStripped=!0;var l=c("4YED"),i={mixins:[c("s04e").a],mounted:function(){Object(l.clearAllBodyScrollLocks)()}},o=c("KHd+"),s=Object(o.a)(i,e,[],!1,null,null,null);t.default=s.exports}}]);
+//# sourceMappingURL=menu-page.7eac7dface0831e927d5.js.map
