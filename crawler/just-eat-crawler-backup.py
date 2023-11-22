@@ -50,30 +50,28 @@ class ScrapRestaurants:
             time.sleep(random.uniform(2, 5))
     
     def extract_restaurant_details(self, soup):
-        # Extract restaurant name
-        name_tag = soup.find('div', {'class': 'c-pageBanner c-pageBanner--negativeBottom--aboveMid c-pageBanner--shadowBottom u-zIndex--low'})
-        name = name_tag.get_text(strip=True) if name_tag else 'No Name'
+        script_tag = soup.find('script', {'type': 'application/ld+json'})
+        if not script_tag or not script_tag.string:
+            print("No restaurant details script tag found.")
+            return {}
 
-        # Extract cuisine types
-        cuisine_tag = soup.find('p', {'data-js-test': 'header-cuisines'})
-        if cuisine_tag:
-            cuisines = [cuisine.strip() for cuisine in cuisine_tag.get_text().split(',') if cuisine.strip()]
-        else:
-            cuisines = []
+        try:
+            data = json.loads(script_tag.string)
+            if data.get('@type') == 'Restaurant':
+                return {
+                    'name': data.get('name', 'No Name'),
+                    'servesCuisine': data.get('servesCuisine', []),
+                    'streetAddress': data.get('address', {}).get('streetAddress', 'No Street Address'),
+                    'addressLocality': data.get('address', {}).get('addressLocality', 'No Address Locality'),
+                    'postalCode': data.get('address', {}).get('postalCode', 'No Postal Code'),
+                    'addressCountry': data.get('address', {}).get('addressCountry', 'No Country')
+                }
+        except json.JSONDecodeError as e:
+            print(f"JSON decoding error: {e}")
+        return {}
+    
 
-        # Extract address
-        address_tag = soup.find('p', {'class': 'l-centered c-restaurantHeader-address'})
-        address = address_tag.get_text(strip=True) if address_tag else 'No Address'
-
-        restaurant_details = {
-            'name': name,
-            'cuisines': cuisines,
-            'address': address
-        }
-
-        return restaurant_details
-
-    def extract_menu_items(self, soup):
+    def extract_menu_items_with_selenium(self):
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
         
         try:
@@ -84,12 +82,8 @@ class ScrapRestaurants:
             #ScrapRestaurants.extract_restaurant_details(self)
             # Fetch page source and parse it
             soup = BeautifulSoup(driver.page_source, 'html.parser')
-            name_vendor = soup.find('h1', {'data-js-test': 'restaurant-heading'})
-            address = soup.find('p', {'class': 'l-centered c-restaurantHeader-address'})
+
             menu_items = soup.find_all('div', class_='c-menuItems-container')
-            print(name_vendor)
-            print(address)
-            #menu_items = soup.find_all('div', class_='c-menuItems-container')
             if not menu_items:
                 print("No menu items found with the given selector.")
                 return []
@@ -120,56 +114,7 @@ class ScrapRestaurants:
             return extracted_data
         finally:
             driver.quit()
-
-    # def extract_restaurant_info(self, html_content):
-    #     # Parse the HTML content
-    #     soup = BeautifulSoup(html_content, 'html.parser')
-
-    #     # Extract restaurant name
-    #     name_tag = soup.find('h1', {'data-js-test': 'restaurant-heading'})
-    #     restaurant_name = name_tag.get_text(strip=True) if name_tag else 'No Name'
-
-    #     # Extract cuisine types
-    #     cuisine_tag = soup.find('p', {'data-js-test': 'header-cuisines'})
-    #     cuisines = [span.get_text(strip=True) for span in cuisine_tag.find_all('span')] if cuisine_tag else []
-
-    #     # Extract address
-    #     address_tag = soup.find('span', {'data-js-test': 'header-restaurantAddress'})
-    #     address = address_tag.get_text(strip=True) if address_tag else 'No Address'
-
-    #     return {
-    #         'name': restaurant_name,
-    #         'cuisines': cuisines,
-    #         'address': address
-    #     }
     
-
-    # def extract_restaurant_details_from_script(self, soup):
-    #     # Find the script tag with type application/ld+json and id structured-data-restaurant
-    #     script_tag = soup.find('script', {'type': 'application/ld+json', 'data-vmid': 'structured-data-restaurant'})
-    #     if not script_tag or not script_tag.string:
-    #         print("No structured-data-restaurant script tag found.")
-    #         return None
-
-    #     try:
-    #         data = json.loads(script_tag.string)
-    #         if data.get('@type') == 'Restaurant':
-    #             details = {
-    #                 'name': data.get('name', 'No Name'),
-    #                 'servesCuisine': data.get('servesCuisine', []),
-    #                 'streetAddress': data.get('address', {}).get('streetAddress', 'No Street Address'),
-    #                 'addressLocality': data.get('address', {}).get('addressLocality', 'No Address Locality'),
-    #                 'postalCode': data.get('address', {}).get('postalCode', 'No Postal Code'),
-    #                 'addressCountry': data.get('address', {}).get('addressCountry', 'No Country'),
-    #                 # Add any other details you need
-    #             }
-    #             return details
-    #     except json.JSONDecodeError as e:
-    #         print(f"JSON decoding error: {e}")
-
-    #     print("No valid restaurant details found in the structured-data-restaurant script tag.")
-    #     return None
-
     def scrape_restaurant(self):
         options = webdriver.ChromeOptions()
         options.add_argument('--headless')
@@ -180,17 +125,18 @@ class ScrapRestaurants:
             time.sleep(random.uniform(5, 10))  # Adjust as needed
             soup = BeautifulSoup(driver.page_source, 'html.parser')
 
-            restaurant_info = self.extract_restaurant_details(soup)
-            print(restaurant_info)
-            menu_items = self.extract_menu_items(soup)  # Assuming this method exists and works correctly
+            restaurant_details = self.extract_restaurant_details(soup)
+            menu_items = self.extract_menu_items_with_selenium(soup)
+
             return {
-                'restaurant_info': restaurant_info,
+                'restaurant_details': restaurant_details,
                 'menu_items': menu_items
             }
         finally:
             driver.quit()
+
 # Usage example for a single URL
-url = 'https://www.just-eat.co.uk/restaurants-pizza-time-thornton-heath/menu'  # Replace with your actual URL
+url = 'https://www.just-eat.co.uk/restaurants-jojo-peri-peri-earls-court/menu'  # Replace with your actual URL
 scraper = ScrapRestaurants(url)
 #menu_items = scraper.extract_menu_items_with_selenium()
 #restaurant_details = scraper.extract_restaurant_details()
