@@ -2,7 +2,7 @@ from bs4 import BeautifulSoup
 
 # Function to extract menu items from the HTML content
 def extract_menu_items_from_html(file_path):
-    with open(file_path, 'r', encoding='utf-8') as file:
+    with open(file_path, 'r') as file:
         content = file.read()
 
     soup = BeautifulSoup(content, 'html.parser')
@@ -39,6 +39,6 @@ html_file_path = 'JoJo Peri Peri restaurant menu in London - Order from Just Eat
 
 # Extract the menu items
 menu_items = extract_menu_items_from_html(html_file_path)
-print(menu_items[:5])  # Displaying the first 5 items for brevity
+print(menu_items)  # Displaying the first 5 items for brevity
 
 

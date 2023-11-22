@@ -5,6 +5,12 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
+import xlsxwriter
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.by import By
+import time
 
 class Crawler:    
     @staticmethod
@@ -58,6 +64,48 @@ class Crawler:
             })
 
         return extracted_data
+    
+    @staticmethod
+    def scrape_restaurant_details(area_urls):
+        # Set up the Excel workbook and worksheet
+        workbook = xlsxwriter.Workbook('Restaurants.xlsx')
+        worksheet = workbook.add_worksheet()
+        row_count = 0
+
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+
+        for url in area_urls:
+            try:
+                driver.get(url)
+                time.sleep(random.uniform(2, 5))  # Allow time for the page to load
+
+                # Extract restaurant details
+                details = driver.find_element(By.XPATH, "//div[@class='restaurantOverview o-card u-negativeSpace--top']/div[2]")
+                rstName = details.find_element(By.XPATH, "//h1[@class='name']").text
+                Foods = details.find_elements(By.XPATH, "//p[@class='cuisines']/span")
+
+                if len(Foods) > 1:
+                    rstFood = ', '.join([food.text for food in Foods[:2]])
+                else:
+                    rstFood = Foods[0].text if Foods else 'No Food Info'
+
+                address_parts = details.find_elements(By.XPATH, "//p[@class='address']/span")
+                rstAddress = ', '.join([part.text for part in address_parts])
+
+                # Write to worksheet
+                worksheet.write(row_count, 0, rstName)
+                worksheet.write(row_count, 1, rstFood)
+                worksheet.write(row_count, 2, rstAddress)
+
+                print(f"{row_count} scraped {url} - {rstName}")
+                row_count += 1
+
+            except Exception as ex:
+                print(f"Error scraping {url}: {ex}")
+
+        # Close resources
+        workbook.close()
+        driver.quit()
 
 # Example usage
 area_urls = ['https://www.just-eat.co.uk/restaurants-jojo-peri-peri-earls-court/menu']
