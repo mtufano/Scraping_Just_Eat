@@ -134,7 +134,7 @@ def process_url(url, db_name):
 
 def main():
     db_name = 'data/restaurants.db'
-    with open('test.txt', 'r') as file:
+    with open('../urls/data/unique_restaurants_urls.txt', 'r') as file:
         urls = [line.strip() for line in file.readlines()]
 
     threads = []
